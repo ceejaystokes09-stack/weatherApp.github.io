@@ -78,7 +78,16 @@ function App() {
     return details.join(", ");
   };
 
-  const currentTemperature = data?.hourly?.temperature_2m?.[0];
+  const hourlyTimes = data?.hourly?.time ?? [];
+  const currentHourIndex = hourlyTimes.reduce(
+    (closestIndex, time, index) =>
+      Math.abs(time.getTime() - Date.now()) <
+      Math.abs(hourlyTimes[closestIndex].getTime() - Date.now())
+        ? index
+        : closestIndex,
+    0,
+  );
+  const currentTemperature = data?.hourly?.temperature_2m?.[currentHourIndex];
 
   if (error)
     return (
@@ -218,23 +227,29 @@ function App() {
           </div>
 
           <div className="hourly-strip" aria-label="Hourly forecast" tabIndex="0">
-            {(data?.hourly?.time?.slice(0, 24) ?? []).map((time, index) => (
+            {hourlyTimes
+              .slice(currentHourIndex, currentHourIndex + 24)
+              .map((time, index) => {
+                const forecastIndex = currentHourIndex + index;
+
+                return (
               <div
-                className={`hour ${index === 0 ? "current-hour" : ""}`}
+                className={`hour ${forecastIndex === currentHourIndex ? "current-hour" : ""}`}
                 key={time.toISOString()}
               >
                 <span>
-                  {index === 0
+                  {forecastIndex === currentHourIndex
                     ? "Now"
                     : time.toLocaleTimeString([], {
                         hour: "numeric",
                         minute: "2-digit",
                       })}
                 </span>
-                <b>{Math.round(data.hourly.temperature_2m[index])}°</b>
-                <i>{index === 0 ? "☼" : "◒"}</i>
+                <b>{Math.round(data.hourly.temperature_2m[forecastIndex])}°</b>
+                <i>{forecastIndex === currentHourIndex ? "☼" : "◒"}</i>
               </div>
-            ))}
+                );
+              })}
             {loading &&
               Array.from({ length: 24 }, (_, index) => index).map((index) => (
                 <div className="hour" key={index}>
