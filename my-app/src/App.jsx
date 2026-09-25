@@ -217,8 +217,8 @@ function App() {
             </div>
           </div>
 
-          <div className="hourly-strip">
-            {(data?.hourly?.time?.slice(0, 5) ?? []).map((time, index) => (
+          <div className="hourly-strip" aria-label="Hourly forecast" tabIndex="0">
+            {(data?.hourly?.time?.slice(0, 24) ?? []).map((time, index) => (
               <div
                 className={`hour ${index === 0 ? "current-hour" : ""}`}
                 key={time.toISOString()}
@@ -236,7 +236,7 @@ function App() {
               </div>
             ))}
             {loading &&
-              [0, 1, 2, 3, 4].map((index) => (
+              Array.from({ length: 24 }, (_, index) => index).map((index) => (
                 <div className="hour" key={index}>
                   <span>—</span>
                   <b>—</b>
