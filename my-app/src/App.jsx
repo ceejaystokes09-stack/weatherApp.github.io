@@ -1,67 +1,83 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useWeather } from "./API";
 import "./App.css";
 
-const destinations = [
-  {
-    name: "London",
-    country: "United Kingdom",
-    latitude: 51.5085,
-    longitude: -0.1257,
-    zone: "Europe/London",
-  },
-  {
-    name: "New York",
-    country: "United States",
-    latitude: 40.7128,
-    longitude: -74.006,
-    zone: "America/New_York",
-  },
-  {
-    name: "Tokyo",
-    country: "Japan",
-    latitude: 35.6762,
-    longitude: 139.6503,
-    zone: "Asia/Tokyo",
-  },
-  {
-    name: "Sydney",
-    country: "Australia",
-    latitude: -33.8688,
-    longitude: 151.2093,
-    zone: "Australia/Sydney",
-  },
-  {
-    name: "Paris",
-    country: "France",
-    latitude: 48.8566,
-    longitude: 2.3522,
-    zone: "Europe/Paris",
-  },
-  {
-    name: "Cape Town",
-    country: "South Africa",
-    latitude: -33.9249,
-    longitude: 18.4241,
-    zone: "Africa/Johannesburg",
-  },
-];
+const DEFAULT_DESTINATION = {
+  name: "London",
+  admin1: "England",
+  country: "United Kingdom",
+  latitude: 51.5085,
+  longitude: -0.1257,
+  zone: "Europe/London",
+};
 
 function App() {
-  const [selectedDestination, setSelectedDestination] = useState(
-    destinations[0],
-  );
+  const [selectedDestination, setSelectedDestination] =
+    useState(DEFAULT_DESTINATION);
   const [query, setQuery] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+  const [isSearching, setIsSearching] = useState(false);
   const [isPopupOpen, setIsPopupOpen] = useState(false);
+
   const { data, loading, error } = useWeather(
     selectedDestination.latitude,
     selectedDestination.longitude,
   );
-  const filteredDestinations = destinations.filter((destination) =>
-    `${destination.name} ${destination.country}`
-      .toLowerCase()
-      .includes(query.toLowerCase()),
-  );
+
+  useEffect(() => {
+    if (!query.trim()) {
+      setSearchResults([]);
+      setIsSearching(false);
+      return;
+    }
+
+    setIsSearching(true);
+
+    const timer = setTimeout(async () => {
+      try {
+        const response = await fetch(
+          `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(
+            query,
+          )}&count=10&language=en&format=json`,
+        );
+        const data = await response.json();
+
+        if (data.results) {
+          const mappedResults = data.results.map((city) => ({
+            name: city.name,
+            // Capture state/province (admin1) and county/district (admin2)
+            admin1: city.admin1 || "",
+            admin2: city.admin2 || "",
+            country: city.country || "",
+            latitude: city.latitude,
+            longitude: city.longitude,
+            zone: city.timezone || "UTC",
+          }));
+          setSearchResults(mappedResults);
+        } else {
+          setSearchResults([]);
+        }
+      } catch (err) {
+        console.error("Failed to fetch locations:", err);
+        setSearchResults([]);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [query]);
+
+  // Helper to format the secondary location text nicely (e.g., "Texas, United States" or "Greater London, United Kingdom")
+  const formatLocationDetails = (destination) => {
+    const details = [
+      destination.admin2,
+      destination.admin1,
+      destination.country,
+    ].filter(Boolean);
+    return details.join(", ");
+  };
+
   const currentTemperature = data?.hourly?.temperature_2m?.[0];
 
   if (error)
@@ -89,6 +105,7 @@ function App() {
             <i /> Live forecast
           </span>
         </header>
+
         <div className="hero-copy">
           <span className="eyebrow">Your window to the sky</span>
           <h1>
@@ -98,6 +115,7 @@ function App() {
           </h1>
           <p>Choose a destination and get a clear read on the hours ahead.</p>
         </div>
+
         <div className="destination-picker">
           <label htmlFor="location-input">Destination</label>
           <div className={`search-box ${isPopupOpen ? "is-active" : ""}`}>
@@ -116,8 +134,8 @@ function App() {
               }}
               onKeyDown={(event) => {
                 if (event.key === "Escape") setIsPopupOpen(false);
-                if (event.key === "Enter" && filteredDestinations[0]) {
-                  setSelectedDestination(filteredDestinations[0]);
+                if (event.key === "Enter" && searchResults[0]) {
+                  setSelectedDestination(searchResults[0]);
                   setQuery("");
                   setIsPopupOpen(false);
                 }
@@ -125,17 +143,23 @@ function App() {
             />
             <span className="search-shortcut">⌘ K</span>
           </div>
+
           {isPopupOpen && (
             <div className="destination-popup">
               <div className="popup-heading">
                 <span>Suggested places</span>
-                <span>{filteredDestinations.length} results</span>
+                <span>
+                  {isSearching
+                    ? "Searching..."
+                    : `${searchResults.length} results`}
+                </span>
               </div>
-              {filteredDestinations.length > 0 ? (
-                filteredDestinations.map((destination) => (
+
+              {searchResults.length > 0 ? (
+                searchResults.map((destination) => (
                   <button
                     className="destination-option"
-                    key={destination.name}
+                    key={`${destination.latitude}-${destination.longitude}`}
                     onMouseDown={(event) => event.preventDefault()}
                     onClick={() => {
                       setSelectedDestination(destination);
@@ -148,28 +172,38 @@ function App() {
                     </span>
                     <span>
                       <strong>{destination.name}</strong>
-                      <small>{destination.country}</small>
+                      <small>{formatLocationDetails(destination)}</small>
                     </span>
                     <span className="option-arrow">↗</span>
                   </button>
                 ))
               ) : (
                 <p className="empty-popup">
-                  No familiar skies found. Try another city.
+                  {query.trim() === ""
+                    ? "Type to search any city in the world..."
+                    : isSearching
+                      ? "Looking up skies..."
+                      : "No familiar skies found. Try another city."}
                 </p>
               )}
             </div>
           )}
         </div>
+
         <section className="forecast-panel" aria-live="polite">
           <div className="forecast-heading">
             <div>
-              <span className="eyebrow">Right now in</span>
+              <span className="eyebrow">
+                {selectedDestination.admin1
+                  ? `${selectedDestination.admin1}, ${selectedDestination.country}`
+                  : selectedDestination.country}
+              </span>
               <h2>{selectedDestination.name}</h2>
               <span className="coordinates">{selectedDestination.zone}</span>
             </div>
             <span className="sun-symbol">☼</span>
           </div>
+
           <div className="temperature-row">
             <strong>
               {loading ? "--" : Math.round(currentTemperature ?? 0)}
@@ -182,6 +216,7 @@ function App() {
               <span className="temperature-note">Feels calm and clear</span>
             </div>
           </div>
+
           <div className="hourly-strip">
             {(data?.hourly?.time?.slice(0, 5) ?? []).map((time, index) => (
               <div
@@ -210,6 +245,7 @@ function App() {
               ))}
           </div>
         </section>
+
         <footer>
           <span>Open-Meteo forecast data</span>
           <span>Updated just now</span>
