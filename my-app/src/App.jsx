@@ -226,28 +226,34 @@ function App() {
             </div>
           </div>
 
-          <div className="hourly-strip" aria-label="Hourly forecast" tabIndex="0">
+          <div
+            className="hourly-strip"
+            aria-label="Hourly forecast"
+            tabIndex="0"
+          >
             {hourlyTimes
               .slice(currentHourIndex, currentHourIndex + 24)
               .map((time, index) => {
                 const forecastIndex = currentHourIndex + index;
 
                 return (
-              <div
-                className={`hour ${forecastIndex === currentHourIndex ? "current-hour" : ""}`}
-                key={time.toISOString()}
-              >
-                <span>
-                  {forecastIndex === currentHourIndex
-                    ? "Now"
-                    : time.toLocaleTimeString([], {
-                        hour: "numeric",
-                        minute: "2-digit",
-                      })}
-                </span>
-                <b>{Math.round(data.hourly.temperature_2m[forecastIndex])}°</b>
-                <i>{forecastIndex === currentHourIndex ? "☼" : "◒"}</i>
-              </div>
+                  <div
+                    className={`hour ${forecastIndex === currentHourIndex ? "current-hour" : ""}`}
+                    key={time.toISOString()}
+                  >
+                    <span>
+                      {forecastIndex === currentHourIndex
+                        ? "Now"
+                        : time.toLocaleTimeString([], {
+                            hour: "numeric",
+                            minute: "2-digit",
+                          })}
+                    </span>
+                    <b>
+                      {Math.round(data.hourly.temperature_2m[forecastIndex])}°
+                    </b>
+                    <i>{forecastIndex === currentHourIndex ? "☼" : "◒"}</i>
+                  </div>
                 );
               })}
             {loading &&
