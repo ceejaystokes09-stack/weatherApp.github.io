@@ -13,6 +13,7 @@ export function useWeather(latitude = 51.5085, longitude = -0.1257) {
           longitude,
           hourly: "temperature_2m",
           forecast_days: 7,
+          timezone: "UTC",
         });
         const response = await fetch(
           `https://api.open-meteo.com/v1/forecast?${params}`,
@@ -28,7 +29,7 @@ export function useWeather(latitude = 51.5085, longitude = -0.1257) {
             utcOffsetSeconds: forecast.utc_offset_seconds,
           },
           hourly: {
-            time: forecast.hourly.time.map((time) => new Date(time)),
+            time: forecast.hourly.time.map((time) => new Date(`${time}Z`)),
             temperature_2m: forecast.hourly.temperature_2m,
           },
         };

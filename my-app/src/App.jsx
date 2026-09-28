@@ -18,6 +18,12 @@ function App() {
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
   const [isPopupOpen, setIsPopupOpen] = useState(false);
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(timer);
+  }, []);
 
   const { data, loading, error } = useWeather(
     selectedDestination.latitude,
@@ -81,8 +87,8 @@ function App() {
   const hourlyTimes = data?.hourly?.time ?? [];
   const currentHourIndex = hourlyTimes.reduce(
     (closestIndex, time, index) =>
-      Math.abs(time.getTime() - Date.now()) <
-      Math.abs(hourlyTimes[closestIndex].getTime() - Date.now())
+      Math.abs(time.getTime() - now) <
+      Math.abs(hourlyTimes[closestIndex].getTime() - now)
         ? index
         : closestIndex,
     0,
@@ -245,6 +251,7 @@ function App() {
                       {forecastIndex === currentHourIndex
                         ? "Now"
                         : time.toLocaleTimeString([], {
+                            timeZone: selectedDestination.zone,
                             hour: "numeric",
                             minute: "2-digit",
                           })}
